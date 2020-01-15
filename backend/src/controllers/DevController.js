@@ -38,5 +38,17 @@ module.exports = {
         }
 
         return response.json(dev)
-    }
-}
+    },
+
+    async update() {
+
+    },
+
+    async destroy(request, response){
+        const github_username = request.params.github_username;
+        const dev = await Dev.deleteOne({ github_username: github_username });
+       
+        return response.json(dev);
+
+    },
+};
