@@ -1,11 +1,15 @@
 import React, {useEffect, useState} from 'react';
-import { StyleSheet} from 'react-native'
-import { View, Image, Text } from 'react-native';
-import { requestPermissionsAsync, getCurrentPositionAsync } from 'expo-location'
+import { StyleSheet} from 'react-native';
+import { View, Image, Text, TextInput, TouchableOpacity } from 'react-native';
+import { requestPermissionsAsync, getCurrentPositionAsync } from 'expo-location';
 import MapView, { Marker, Callout } from 'react-native-maps';
+import { MaterialIcons } from '@expo/vector-icons';
+import api from '../services/api';
 
-function Main(){
+function Main( { navigation }){
+    const [devs, setDevs] = useState([]);
     const [currentRegion, setCurrentRegion] = useState(null);
+    const [techs, setTechs] = useState('');
     useEffect(()=> {
         async function loadInitialPosition(){
             const { granted } = await requestPermissionsAsync();
@@ -32,24 +36,66 @@ function Main(){
 
     },[]);
 
+    async function loadDevs(){
+        const { latitude, longitude } = currentRegion;
+
+        const response = await api.get('/search', {
+            params: {
+                latitude,
+                longitude,
+                techs
+            }
+        });
+
+        setDevs(response.data.devs);
+    }
+
+    function handleRegionChanged(region) {
+        setCurrentRegion(region)
+    }
+
     if(!currentRegion){
         return null;
     }
     return(
-        <MapView initialRegion={currentRegion} style = {styles.map}>
+        <>
+            <MapView initialRegion={currentRegion} onRegionChangeComplete={handleRegionChanged} style = {styles.map}>
 
-            <Marker coordinate = {{ latitude: -15.8039715, longitude: -47.9317727}}>
-                <Image style = {styles.avatar} source = {{ uri: 'https://avatars1.githubusercontent.com/u/31075972?s=400&u=9b30a7cec9bf67b8e6e65eda3e1d721c0ac20714&v=4' }}/> 
-                <Callout>
-                <View style = {styles.callout}>
-                    <Text style = {styles.devName}>Joao Marcelo Nunes</Text>
-                    <Text style = {styles.devBio} >Computer Engineering Student at University of Brasília</Text>
-                    <Text style = {styles.devTechs}>C, React, Python</Text>
-                </View>
+            {devs.map(dev => (
+               
+                <Marker  key = {dev._id} coordinate = {{ latitude: dev.location.coordinates[1],  longitude: dev.location.coordinates[0]}}>
+                <Image style = {styles.avatar} source = {{ uri: dev.avatar_url }}/> 
+                <Callout onPress = { () => {
+                    navigation.navigate('Profile', { github_username: dev.github_username });
+
+                }}>
+                    <View style = {styles.callout}>
+                        <Text style = {styles.devName}>{dev.name}</Text>
+                        <Text style = {styles.devBio} >{dev.bio}</Text>
+                        <Text style = {styles.devTechs}>{dev.techs.join(', ')}</Text>
+                    </View>
                 </Callout>
-            
             </Marker>
+
+            ))}
         </MapView>
+
+            <View style = {styles.searchForm}>
+                <TextInput 
+                    style={styles.searchInput}
+                    placeholder="Buscar devs por techs..."
+                    placeholderTextColor="#999"
+                    autoCapitalize= "words"
+                    autoCorrect={false}
+                    value = {techs}
+                    onChangeText = {setTechs}
+                    />
+
+                <TouchableOpacity onPress={loadDevs} style = {styles.loadButton}>
+                    <MaterialIcons name="my-location" size={20} color="#FFF" />
+                </TouchableOpacity>
+            </View>
+        </>
     );
 }
 
@@ -84,6 +130,43 @@ const styles = StyleSheet.create({
     devTechs:{
         marginTop: 5,
     },
+
+    searchForm:{
+        position: 'absolute',
+        top: 20,
+        left: 20,
+        right: 20,
+        zIndex: 5,
+        flexDirection: "row",
+
+    },
+
+    searchInput:{
+        flex: 1,
+        height: 50,
+        backgroundColor: '#FFF',
+        color: '#333',
+        borderRadius: 25,
+        paddingHorizontal: 20,
+        fontSize: 16,
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowOffset: {
+            width: 4,
+            height: 4,
+        },
+    },
+
+    loadButton: {
+        width: 50,
+        height: 50,
+        backgroundColor: '#8E4DFF',
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 15,
+
+    }
 
 
 })
